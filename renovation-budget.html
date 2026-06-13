@@ -36,6 +36,7 @@ input,select,textarea{font:inherit}
 .stat-card.ok{border-left:4px solid var(--green)}
 .stat-card.neutral{border-left:4px solid var(--primary)}
 .stat-card.warn{border-left:4px solid var(--yellow)}
+.stat-card.warn:hover{box-shadow:0 2px 8px rgba(245,158,11,.2)}
 .stat-label{font-size:12px;color:var(--text3);margin-bottom:4px}
 .stat-value{font-size:22px;font-weight:700}
 .stat-value.red{color:var(--red)}
@@ -469,10 +470,10 @@ function renderStats(){
       <div class="stat-value ${remaining<0?'red':'green'}">${remaining>=0?'':'-'}¥${fmt(Math.abs(remaining))}</div>
       <div class="stat-sub">${remaining>=0?'仍可支配':'已超出预算'}</div>
     </div>
-    <div class="stat-card ${overCats>0?'warn':'ok'}">
+    <div class="stat-card ${overCats>0?'warn':'ok'}" ${overCats>0?'style="cursor:pointer" onclick="showOverBudgetCategories()"':''}>
       <div class="stat-label">超支分类</div>
       <div class="stat-value ${overCats>0?'red':'green'}">${overCats}</div>
-      <div class="stat-sub">${overCats>0?'实际支出超出预算':'所有分类未超预算'}</div>
+      <div class="stat-sub">${overCats>0?'实际支出超出预算（点击查看详情）':'所有分类未超预算'}</div>
     </div>
   `;
 }
@@ -594,6 +595,19 @@ function toggleCat(catId){
   if(expandedCats.has(catId)) expandedCats.delete(catId);
   else expandedCats.add(catId);
   renderContent();
+}
+
+function showOverBudgetCategories(){
+  categories.forEach(cat => {
+    const catBudget = getCatBudget(cat);
+    const catActual = getCatActual(cat);
+    if(catActual > catBudget && catBudget > 0) expandedCats.add(cat.id);
+  });
+  renderContent();
+  setTimeout(() => {
+    const firstOver = document.querySelector('.cat-over');
+    if(firstOver) firstOver.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 50);
 }
 
 // ==================== CATEGORY CRUD ====================
