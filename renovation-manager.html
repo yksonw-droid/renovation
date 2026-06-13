@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家庭装修进度管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f0f2f5;--card:#fff;--primary:#4A7BF7;--primary-light:#EBF1FF;
+  --text:#1a1a2e;--text2:#6b7280;--text3:#9ca3af;--border:#e5e7eb;
+  --green:#22c55e;--yellow:#f59e0b;--gray:#d1d5db;--red:#ef4444;
+  --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;cursor:pointer;border:none;background:none}
+input,select{font:inherit}
+
+/* === HEADER === */
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:24px;flex-shrink:0;z-index:10}
+.header h1{font-size:18px;font-weight:600;white-space:nowrap}
+.stats{display:flex;gap:20px;flex:1;justify-content:center}
+.stat{text-align:center}
+.stat-value{font-size:20px;font-weight:700;color:var(--primary)}
+.stat-value.green{color:var(--green)}
+.stat-value.yellow{color:var(--yellow)}
+.stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+.header-actions{display:flex;gap:8px}
+.btn{padding:6px 14px;border-radius:6px;font-size:13px;transition:all .15s}
+.btn-outline{border:1px solid var(--border);color:var(--text2)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{opacity:.9}
+
+/* === PHASE TABS === */
+.tabs{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:0;overflow-x:auto;flex-shrink:0}
+.tab{padding:10px 16px;font-size:13px;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:6px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--primary);border-color:var(--primary);font-weight:500}
+.tab-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tab-progress{font-size:11px;color:var(--text3);margin-left:2px}
+
+/* === PHASE SUMMARY === */
+.phase-summary{background:var(--card);margin:16px 16px 0;border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow)}
+.phase-summary h2{font-size:16px;font-weight:600;margin-bottom:4px}
+.phase-summary .meta{font-size:13px;color:var(--text2);margin-bottom:12px}
+.progress-bar{height:6px;background:var(--gray);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width .3s}
+.progress-text{font-size:12px;color:var(--text2);margin-top:6px}
+
+/* === GANTT === */
+.gantt-wrapper{flex:1;margin:12px 16px 16px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.gantt-scroll{flex:1;overflow:auto;position:relative}
+.gantt-table{display:flex;min-width:fit-content}
+.gantt-sidebar{position:sticky;left:0;z-index:3;background:var(--card);border-right:1px solid var(--border);flex-shrink:0;width:200px}
+.gantt-sidebar .gh-cell{height:36px;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:600;color:var(--text2);background:#f9fafb;border-bottom:1px solid var(--border)}
+.task-row{height:44px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid #f3f4f6;cursor:pointer;transition:background .1s}
+.task-row:hover{background:#f9fafb}
+.task-row.selected{background:var(--primary-light)}
+.task-status-dot{width:8px;height:8px;border-radius:50%;margin-right:8px;flex-shrink:0;border:2px solid}
+.task-name{font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-days{font-size:11px;color:var(--text3);margin-left:8px;flex-shrink:0}
+
+.gantt-timeline{flex:1;position:relative}
+.timeline-header{display:flex;height:36px;background:#f9fafb;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2}
+.week-cell{width:210px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2);border-right:1px solid #f3f4f6}
+.week-cell.today{color:var(--primary);font-weight:600}
+.bars-area{position:relative}
+.day-grid{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;pointer-events:none}
+.day-cell{width:30px;flex-shrink:0;border-right:1px solid #f8f9fa}
+.day-cell.weekend{background:#fafbfc}
+.day-cell.today-col{background:#f0f4ff}
+.task-bar{position:absolute;height:28px;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:11px;color:#fff;cursor:pointer;transition:transform .1s,box-shadow .1s;overflow:hidden;white-space:nowrap;z-index:1;top:8px}
+.task-bar:hover{transform:scaleY(1.1);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.task-bar.completed{opacity:.7}
+.task-bar .bar-label{overflow:hidden;text-overflow:ellipsis}
+
+/* Today line */
+.today-line{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:4;pointer-events:none}
+.today-label{position:absolute;top:-2px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;font-size:9px;padding:1px 4px;border-radius:3px;white-space:nowrap}
+
+/* Dependency arrows */
+.dep-svg{position:absolute;top:0;left:0;pointer-events:none;z-index:3;overflow:visible}
+
+/* === DETAIL PANEL === */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.2);z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:auto}
+.detail-panel{position:fixed;top:0;right:0;bottom:0;width:380px;background:var(--card);box-shadow:-4px 0 20px rgba(0,0,0,.1);z-index:101;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+.detail-panel.open{transform:translateX(0)}
+.panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-header h3{font-size:15px;font-weight:600}
+.close-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:18px;color:var(--text3)}
+.close-btn:hover{background:#f3f4f6;color:var(--text)}
+.panel-body{flex:1;overflow-y:auto;padding:20px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;transition:border .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
+.field textarea{resize:vertical;min-height:60px}
+.field-row{display:flex;gap:10px}
+.field-row .field{flex:1}
+
+.status-btns{display:flex;gap:6px}
+.status-btn{flex:1;padding:8px;border-radius:6px;font-size:12px;text-align:center;border:1px solid var(--border);transition:all .15s}
+.status-btn:hover{border-color:var(--primary)}
+.status-btn.active{border-color:transparent;color:#fff}
+.status-btn.active.s-pending{background:var(--gray);color:#fff}
+.status-btn.active.s-active{background:var(--primary);color:#fff}
+.status-btn.active.s-done{background:var(--green);color:#fff}
+
+.dep-list{list-style:none;font-size:13px}
+.dep-list li{padding:6px 0;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:6px}
+.dep-list li:last-child{border:none}
+.dep-badge{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--primary-light);color:var(--primary)}
+.parallel-badge{font-size:10px;padding:2px 6px;border-radius:4px;background:#fef3c7;color:#92400e}
+
+/* === EMPTY STATE === */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#9ca3af}
+
+/* === ADD TASK FORM === */
+.add-task-bar{padding:8px 12px;border-top:1px solid var(--border)}
+.add-task-bar button{width:100%;padding:6px;border:1px dashed var(--border);border-radius:6px;color:var(--text3);font-size:12px}
+.add-task-bar button:hover{border-color:var(--primary);color:var(--primary)}
+
+/* === MODAL === */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal{background:var(--card);border-radius:12px;width:480px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.18);transform:scale(.95);transition:transform .2s}
+.modal-overlay.open .modal{transform:scale(1)}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--border);font-size:16px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.btn-danger{background:var(--red);color:#fff;padding:6px 14px;border-radius:6px;font-size:13px}
+.btn-danger:hover{opacity:.85}
+.btn-save{background:var(--primary);color:#fff;padding:6px 14px;border-radius:6px;font-size:13px}
+.btn-save:hover{opacity:.9}
+.btn-cancel{border:1px solid var(--border);color:var(--text2);padding:6px 14px;border-radius:6px;font-size:13px}
+.btn-cancel:hover{border-color:var(--text3)}
+
+.color-picker{display:flex;gap:8px;flex-wrap:wrap}
+.color-dot{width:30px;height:30px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:border-color .15s,transform .1s}
+.color-dot:hover{transform:scale(1.1)}
+.color-dot.selected{border-color:var(--text);transform:scale(1.1)}
+
+.icon-picker{display:flex;gap:6px;flex-wrap:wrap}
+.icon-opt{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:2px solid var(--border);border-radius:8px;cursor:pointer;font-size:18px;transition:all .15s}
+.icon-opt:hover{border-color:var(--primary)}
+.icon-opt.selected{border-color:var(--primary);background:var(--primary-light)}
+
+.dep-group-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:8px 0 4px;margin-top:4px;border-top:1px solid #f3f4f6}
+.dep-group-title:first-child{border:none;margin:0}
+.dep-check{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer}
+.dep-check input{accent-color:var(--primary);width:15px;height:15px;cursor:pointer}
+
+/* Action buttons in summary */
+.summary-actions{display:flex;gap:6px;margin-top:10px}
+.summary-actions .btn{font-size:12px;padding:4px 10px}
+
+/* Phase tab actions */
+.tab-actions{display:inline-flex;gap:2px;margin-left:4px}
+.tab-action-btn{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;font-size:10px;color:var(--text3);cursor:pointer;opacity:0;transition:opacity .15s}
+.tab:hover .tab-action-btn{opacity:1}
+.tab-action-btn:hover{background:#f3f4f6;color:var(--text)}
+
+/* Add phase tab */
+.tab-add{border:1px dashed var(--border);border-bottom:none;border-radius:6px 6px 0 0;margin-top:10px;color:var(--text3);font-size:12px;padding:8px 12px!important}
+.tab-add:hover{border-color:var(--primary);color:var(--primary);border-bottom:none}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏠 装修进度管理</h1>
+  <div class="stats" id="stats"></div>
+  <div class="header-actions">
+    <button class="btn btn-outline" onclick="resetData()">重置</button>
+    <button class="btn btn-outline" onclick="exportData()">导出</button>
+    <button class="btn btn-outline" onclick="importData()">导入</button>
+  </div>
+</div>
+
+<div class="tabs" id="tabs"></div>
+
+<div id="summaryArea"></div>
+
+<div class="gantt-wrapper">
+  <div class="gantt-scroll" id="ganttScroll">
+    <div class="gantt-table">
+      <div class="gantt-sidebar" id="ganttSidebar"></div>
+      <div class="gantt-timeline" id="ganttTimeline"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeDetail()"></div>
+<div class="detail-panel" id="detailPanel">
+  <div class="panel-header">
+    <h3 id="panelTitle">任务详情</h3>
+    <button class="close-btn" onclick="closeDetail()">×</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <span id="modalTitle"></span>
+      <button class="close-btn" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<script>
+// ==================== CONSTANTS ====================
+const PHASE_COLORS = ['#4A7BF7','#FF7043','#26A69A','#AB47BC','#FFA726','#8D6E63','#78909C','#66BB6A','#EF5350','#EC407A'];
+const DAY_W = 30, ROW_H = 44, HEADER_H = 36;
+const STATUS = {PENDING:'pending',ACTIVE:'active',COMPLETED:'completed'};
+const STATUS_TEXT = {pending:'未开始',active:'进行中',completed:'已完成'};
+
+// ==================== DEFAULT DATA ====================
+function getDefaultPhases(){
+return [
+  {id:'prep',name:'前期准备',icon:'📋',color:PHASE_COLORS[0],tasks:[
+    {id:'p1',name:'量房验房',duration:3,predecessors:[],parallel:[]},
+    {id:'p2',name:'设计方案确认',duration:15,predecessors:['p1'],parallel:[]},
+    {id:'p3',name:'预算编制审批',duration:5,predecessors:['p2'],parallel:[]},
+    {id:'p4',name:'办理装修手续',duration:3,predecessors:['p2'],parallel:[]},
+    {id:'p5',name:'确定施工方',duration:7,predecessors:['p3','p4'],parallel:[],gap:3},
+  ]},
+  {id:'struct',name:'土建改造',icon:'🔨',color:PHASE_COLORS[1],tasks:[
+    {id:'s1',name:'墙体拆除',duration:5,predecessors:['p5'],parallel:[]},
+    {id:'s2',name:'墙体砌筑',duration:7,predecessors:['s1'],parallel:[]},
+    {id:'s3',name:'地面找平',duration:3,predecessors:['s2'],parallel:[]},
+    {id:'s4',name:'门窗拆除',duration:2,predecessors:['s1'],parallel:['s2','s3']},
+    {id:'s5',name:'垃圾清运',duration:2,predecessors:['s2','s4'],parallel:[]},
+  ]},
+  {id:'mep',name:'水电工程',icon:'⚡',color:PHASE_COLORS[2],tasks:[
+    {id:'m1',name:'水管布线',duration:7,predecessors:['s5'],parallel:[]},
+    {id:'m2',name:'电线布线',duration:7,predecessors:['s5'],parallel:['m1']},
+    {id:'m3',name:'开关插座定位',duration:2,predecessors:['m1','m2'],parallel:[]},
+    {id:'m4',name:'地暖安装',duration:5,predecessors:['m2'],parallel:['m1']},
+    {id:'m5',name:'中央空调安装',duration:3,predecessors:['m2'],parallel:['m1','m4']},
+    {id:'m6',name:'新风系统安装',duration:3,predecessors:['m2'],parallel:['m1','m4','m5']},
+    {id:'m7',name:'水电验收',duration:1,predecessors:['m1','m2','m3','m4','m5','m6'],parallel:[]},
+  ]},
+  {id:'water',name:'防水工程',icon:'💧',color:PHASE_COLORS[3],tasks:[
+    {id:'w1',name:'卫生间防水',duration:3,predecessors:['m7'],parallel:[]},
+    {id:'w2',name:'厨房防水',duration:2,predecessors:['m7'],parallel:['w1']},
+    {id:'w3',name:'阳台防水',duration:2,predecessors:['m7'],parallel:['w1','w2']},
+    {id:'w4',name:'闭水试验',duration:2,predecessors:['w1','w2','w3'],parallel:[],gap:1},
+  ]},
+  {id:'tile',name:'瓦工工程',icon:'🧱',color:PHASE_COLORS[4],tasks:[
+    {id:'t1',name:'墙砖铺贴',duration:10,predecessors:['w4'],parallel:[]},
+    {id:'t2',name:'地砖铺贴',duration:7,predecessors:['t1'],parallel:[]},
+    {id:'t3',name:'过门石安装',duration:1,predecessors:['t2'],parallel:[]},
+    {id:'t4',name:'窗台石安装',duration:1,predecessors:['t2'],parallel:['t3']},
+    {id:'t5',name:'地漏安装',duration:1,predecessors:['t2'],parallel:['t3','t4']},
+  ]},
+  {id:'wood',name:'木工工程',icon:'🪚',color:PHASE_COLORS[5],tasks:[
+    {id:'wd1',name:'吊顶龙骨',duration:3,predecessors:['m7'],parallel:[]},
+    {id:'wd2',name:'石膏板封板',duration:4,predecessors:['wd1'],parallel:[]},
+    {id:'wd3',name:'背景墙造型',duration:5,predecessors:['wd2'],parallel:[]},
+    {id:'wd4',name:'木门测量',duration:1,predecessors:['s5','t1'],parallel:[]},
+    {id:'wd5',name:'现场柜体制作',duration:15,predecessors:['wd2'],parallel:['wd3']},
+  ]},
+  {id:'paint',name:'油漆工程',icon:'🎨',color:PHASE_COLORS[6],tasks:[
+    {id:'pt1',name:'墙面基层处理',duration:3,predecessors:['wd2'],parallel:[]},
+    {id:'pt2',name:'刮腻子(第一遍)',duration:3,predecessors:['pt1'],parallel:[]},
+    {id:'pt3',name:'刮腻子(第二遍)',duration:3,predecessors:['pt2'],parallel:[]},
+    {id:'pt4',name:'刷底漆',duration:2,predecessors:['pt3'],parallel:[]},
+    {id:'pt5',name:'刷面漆(第一遍)',duration:2,predecessors:['pt4'],parallel:[]},
+    {id:'pt6',name:'刷面漆(第二遍)',duration:2,predecessors:['pt5'],parallel:[],gap:2},
+  ]},
+  {id:'custom',name:'定制产品',icon:'📐',color:PHASE_COLORS[7],tasks:[
+    {id:'c1',name:'橱柜初测',duration:1,predecessors:['s5'],parallel:[]},
+    {id:'c2',name:'衣柜初测',duration:1,predecessors:['s5'],parallel:['c1']},
+    {id:'c3',name:'定制复测',duration:1,predecessors:['t1','wd2'],parallel:[]},
+    {id:'c4',name:'橱柜下单生产',duration:30,predecessors:['c3'],parallel:[]},
+    {id:'c5',name:'衣柜下单生产',duration:30,predecessors:['c3'],parallel:['c4']},
+    {id:'c6',name:'木门下单生产',duration:30,predecessors:['wd4'],parallel:['c4','c5']},
+  ]},
+  {id:'install',name:'主材安装',icon:'🔧',color:PHASE_COLORS[8],tasks:[
+    {id:'i1',name:'地板安装',duration:3,predecessors:['pt6'],parallel:[]},
+    {id:'i2',name:'开关面板安装',duration:2,predecessors:['pt6'],parallel:['i1']},
+    {id:'i3',name:'橱柜安装',duration:3,predecessors:['pt6','c4'],parallel:[]},
+    {id:'i4',name:'衣柜安装',duration:3,predecessors:['pt6','c5'],parallel:['i3']},
+    {id:'i5',name:'木门安装',duration:2,predecessors:['pt6','c6','i1'],parallel:[]},
+    {id:'i6',name:'卫浴安装',duration:2,predecessors:['pt6'],parallel:['i1','i2']},
+    {id:'i7',name:'厨房水槽安装',duration:1,predecessors:['i3'],parallel:[]},
+    {id:'i8',name:'灯具安装',duration:2,predecessors:['pt6'],parallel:['i1','i2','i6']},
+    {id:'i9',name:'晾衣架安装',duration:1,predecessors:['pt6'],parallel:['i1']},
+    {id:'i10',name:'家电安装',duration:3,predecessors:['pt6','i3'],parallel:['i5','i6','i8']},
+  ]},
+  {id:'soft',name:'软装搭配',icon:'🛋️',color:PHASE_COLORS[9],tasks:[
+    {id:'f1',name:'家具选购进场',duration:5,predecessors:['i1','i5'],parallel:[]},
+    {id:'f2',name:'窗帘安装',duration:2,predecessors:['i5'],parallel:['f1']},
+    {id:'f3',name:'家电摆放调试',duration:2,predecessors:['i10'],parallel:['f1']},
+    {id:'f4',name:'装饰画/摆件',duration:2,predecessors:['f1'],parallel:[]},
+    {id:'f5',name:'绿植摆放',duration:1,predecessors:['f1'],parallel:['f4']},
+    {id:'f6',name:'开荒保洁',duration:2,predecessors:['f1','f2','f3'],parallel:[]},
+    {id:'f7',name:'通风除甲醛',duration:30,predecessors:['f6'],parallel:[]},
+  ]},
+]};
+
+// ==================== STATE ====================
+let phases = [];
+let currentPhase = 0; // 0 = overview, 1-10 = phase index+1
+let selectedTask = null;
+let projectStart = null;
+
+// ==================== INIT ====================
+function init(){
+  const saved = localStorage.getItem('reno_data');
+  if(saved){
+    try{ const d=JSON.parse(saved); phases=d.phases; projectStart=new Date(d.projectStart); }
+    catch(e){ loadDefaults(); }
+  } else { loadDefaults(); }
+  recalcAll();
+  render();
+}
+
+function loadDefaults(){
+  phases = getDefaultPhases();
+  const today = new Date();
+  projectStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  recalcAll();
+  save();
+}
+
+function save(){
+  localStorage.setItem('reno_data', JSON.stringify({phases, projectStart: projectStart.toISOString()}));
+}
+
+// Compute global _startDay for all tasks based on dependency chain
+function recalcAll(){
+  let day = 0;
+  phases.forEach(phase => {
+    let phaseStart = day;
+    phase.tasks.forEach(task => {
+      let start = phaseStart;
+      if(task.predecessors && task.predecessors.length > 0){
+        task.predecessors.forEach(pid => {
+          const ref = findTask(pid);
+          if(ref){
+            const predEnd = (ref.task._startDay||0) + ref.task.duration + (ref.task.gap||0);
+            if(predEnd > start) start = predEnd;
+          }
+        });
+      }
+      task._startDay = start;
+    });
+    if(phase.tasks.length > 0){
+      const phaseEnd = Math.max(...phase.tasks.map(t => t._startDay + t.duration));
+      day = phaseEnd;
+    }
+    // If phase is empty, day stays unchanged (no effect on subsequent phases)
+  });
+}
+
+function resetData(){
+  if(confirm('确定要重置所有数据吗？此操作不可恢复。')){
+    localStorage.removeItem('reno_data');
+    loadDefaults();
+    recalcAll();
+    currentPhase = 0;
+    selectedTask = null;
+    render();
+  }
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify({phases,projectStart},null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '装修进度_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+
+function importData(){
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try{
+        const d = JSON.parse(ev.target.result);
+        phases = d.phases; projectStart = new Date(d.projectStart);
+        recalcAll(); save(); currentPhase=0; selectedTask=null; render();
+      }catch(err){ alert('文件格式错误'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ==================== DATE UTILS ====================
+function addDays(date, days){
+  const d = new Date(date);
+  d.setDate(d.getDate()+days);
+  return d;
+}
+function diffDays(a,b){
+  return Math.round((new Date(b)-new Date(a))/(86400000));
+}
+function formatDate(d){
+  if(!d) return '';
+  const dt = new Date(d);
+  return `${dt.getMonth()+1}/${dt.getDate()}`;
+}
+function formatDateFull(d){
+  if(!d) return '';
+  const dt = new Date(d);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+function getMonday(d){
+  const dt = new Date(d);
+  const day = dt.getDay()||7;
+  dt.setDate(dt.getDate()-day+1);
+  return dt;
+}
+
+// ==================== TASK DATE CALC ====================
+function findTask(id){
+  for(const phase of phases){
+    const t = phase.tasks.find(t=>t.id===id);
+    if(t) return {task:t, phase};
+  }
+  return null;
+}
+
+function getPhaseDuration(phase){
+  if(!phase.tasks.length) return 0;
+  const maxEnd = Math.max(...phase.tasks.map(t => (t._startDay||0) + t.duration));
+  const minStart = Math.min(...phase.tasks.map(t => t._startDay||0));
+  return maxEnd - minStart;
+}
+
+// ==================== TASK DATE HELP ====================
+function findTaskInCurrentPhase(id){
+  // Search current phase first, then all phases (cross-phase deps)
+  if(currentPhase > 0){
+    const phase = phases[currentPhase-1];
+    const t = phase.tasks.find(t=>t.id===id);
+    if(t) return t;
+  }
+  const found = findTask(id);
+  return found ? found.task : null;
+}
+
+// ==================== TASK STATUS ====================
+function getTaskStatus(task){
+  if(task._status) return task._status;
+  return STATUS.PENDING;
+}
+function setTaskStatus(task, status){
+  task._status = status;
+  save();
+}
+
+// ==================== RENDERING ====================
+function render(){
+  renderStats();
+  renderTabs();
+  renderSummary();
+  renderGantt();
+}
+
+function renderStats(){
+  let total=0, done=0, active=0;
+  phases.forEach(p=>p.tasks.forEach(t=>{
+    total++;
+    const s = getTaskStatus(t);
+    if(s===STATUS.COMPLETED) done++;
+    else if(s===STATUS.ACTIVE) active++;
+  }));
+  const pct = total?Math.round(done/total*100):0;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="stat-value">${pct}%</div><div class="stat-label">总进度</div></div>
+    <div class="stat"><div class="stat-value green">${done}</div><div class="stat-label">已完成</div></div>
+    <div class="stat"><div class="stat-value yellow">${active}</div><div class="stat-label">进行中</div></div>
+    <div class="stat"><div class="stat-value">${total-done-active}</div><div class="stat-label">未开始</div></div>
+  `;
+}
+
+function renderTabs(){
+  const el = document.getElementById('tabs');
+  let html = `<button class="tab ${currentPhase===0?'active':''}" onclick="switchPhase(0)">
+    <span class="tab-dot" style="background:var(--primary)"></span>全部概览
+  </button>`;
+  phases.forEach((p,i) => {
+    const done = p.tasks.filter(t=>getTaskStatus(t)===STATUS.COMPLETED).length;
+    const pct = p.tasks.length ? Math.round(done/p.tasks.length*100) : 0;
+    html += `<button class="tab ${currentPhase===i+1?'active':''}" onclick="switchPhase(${i+1})">
+      <span class="tab-dot" style="background:${p.color}"></span>
+      ${p.icon} ${p.name}
+      <span class="tab-progress">${pct}%</span>
+      <span class="tab-actions">
+        <span class="tab-action-btn" onclick="event.stopPropagation();editPhase(${i})" title="编辑阶段">✎</span>
+        <span class="tab-action-btn" onclick="event.stopPropagation();deletePhase(${i})" title="删除阶段">✕</span>
+      </span>
+    </button>`;
+  });
+  html += `<button class="tab tab-add" onclick="addPhase()">+ 新增阶段</button>`;
+  el.innerHTML = html;
+}
+
+function switchPhase(idx){
+  currentPhase = idx;
+  selectedTask = null;
+  render();
+  // Scroll gantt to start
+  const scroll = document.getElementById('ganttScroll');
+  if(scroll) scroll.scrollLeft = 0;
+}
+
+function renderSummary(){
+  const el = document.getElementById('summaryArea');
+  if(currentPhase===0){
+    const allTasks = phases.flatMap(p=>p.tasks);
+    const done = allTasks.filter(t=>getTaskStatus(t)===STATUS.COMPLETED).length;
+    const total = allTasks.length;
+    const pct = total?Math.round(done/total*100):0;
+    const firstStart = projectStart;
+    const maxEndDay = allTasks.length ? Math.max(...allTasks.map(t=>(t._startDay||0)+t.duration)) : 0;
+    const lastEnd = addDays(projectStart, maxEndDay);
+    const totalDays = maxEndDay;
+    el.innerHTML = `<div class="phase-summary">
+      <h2>全部工程</h2>
+      <div class="meta">预计总工期 ${totalDays} 天 · ${formatDateFull(firstStart)} 至 ${formatDateFull(lastEnd)} · 共 ${phases.length} 个阶段 ${total} 项任务</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:var(--primary)"></div></div>
+      <div class="progress-text">总体进度 ${pct}% (${done}/${total})</div>
+      <div class="summary-actions">
+        <button class="btn btn-outline" onclick="addPhase()">+ 新增阶段</button>
+      </div>
+    </div>`;
+  } else {
+    const phase = phases[currentPhase-1];
+    const pi = currentPhase - 1;
+    const done = phase.tasks.filter(t=>getTaskStatus(t)===STATUS.COMPLETED).length;
+    const total = phase.tasks.length;
+    const pct = total ? Math.round(done/total*100) : 0;
+    const dur = getPhaseDuration(phase);
+    el.innerHTML = `<div class="phase-summary">
+      <h2>${phase.icon} ${phase.name}</h2>
+      <div class="meta">预计工期 ${dur} 天 · 共 ${total} 项任务</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${phase.color}"></div></div>
+      <div class="progress-text">阶段进度 ${pct}% (${done}/${total})</div>
+      <div class="summary-actions">
+        <button class="btn btn-outline" onclick="editPhase(${pi})">✎ 编辑阶段</button>
+        <button class="btn btn-outline" onclick="addTaskToPhase(${pi})" style="color:var(--primary);border-color:var(--primary)">+ 新增子项</button>
+        <button class="btn btn-outline" onclick="deletePhase(${pi})" style="color:var(--red);border-color:var(--red)">删除阶段</button>
+      </div>
+    </div>`;
+  }
+}
+
+function renderGantt(){
+  const sidebar = document.getElementById('ganttSidebar');
+  const timeline = document.getElementById('ganttTimeline');
+
+  if(currentPhase===0){
+    renderOverviewGantt(sidebar, timeline);
+  } else {
+    renderDetailGantt(sidebar, timeline);
+  }
+}
+
+// ==================== OVERVIEW GANTT ====================
+function renderOverviewGantt(sidebar, timeline){
+  const maxEndDay = Math.max(...phases.flatMap(p=>p.tasks.map(t=>(t._startDay||0)+t.duration)));
+  const totalDays = maxEndDay + 3;
+  const totalWidth = totalDays * DAY_W;
+
+  // Sidebar
+  let sideHTML = `<div class="gh-cell">阶段 / 时间</div>`;
+  phases.forEach((p,i) => {
+    const done = p.tasks.filter(t=>getTaskStatus(t)===STATUS.COMPLETED).length;
+    const dur = getPhaseDuration(p);
+    sideHTML += `<div class="task-row" onclick="switchPhase(${i+1})" title="点击查看详情">
+      <span class="task-status-dot" style="border-color:${p.color};background:${done===p.tasks.length?p.color:'#fff'}"></span>
+      <span class="task-name">${p.icon} ${p.name}</span>
+      <span class="task-days">${dur}天</span>
+    </div>`;
+  });
+  sidebar.innerHTML = sideHTML;
+
+  // Timeline
+  let weekHTML = '<div class="timeline-header">';
+  for(let d=0; d<totalDays; d+=7){
+    const dt = addDays(projectStart, d);
+    const daysInWeek = Math.min(7, totalDays-d);
+    weekHTML += `<div class="week-cell" style="width:${daysInWeek*DAY_W}px">${dt.getMonth()+1}/${dt.getDate()}</div>`;
+  }
+  weekHTML += '</div>';
+
+  // Bars area
+  let barsHTML = `<div class="bars-area" style="width:${totalWidth}px;height:${phases.length*ROW_H}px">`;
+  barsHTML += '<div class="day-grid">';
+  for(let d=0;d<totalDays;d++){
+    const dt = addDays(projectStart, d);
+    const dow = dt.getDay();
+    const isToday = formatDateFull(dt)===formatDateFull(new Date());
+    barsHTML += `<div class="day-cell${dow===0||dow===6?' weekend':''}${isToday?' today-col':''}"></div>`;
+  }
+  barsHTML += '</div>';
+
+  // Phase bars positioned by _startDay
+  phases.forEach((p,i) => {
+    if(!p.tasks.length) return; // skip empty phases
+    const phaseStart = Math.min(...p.tasks.map(t=>t._startDay||0));
+    const phaseEnd = Math.max(...p.tasks.map(t=>(t._startDay||0)+t.duration));
+    const dur = phaseEnd - phaseStart;
+    const left = phaseStart * DAY_W;
+    const width = dur * DAY_W;
+    const done = p.tasks.filter(t=>getTaskStatus(t)===STATUS.COMPLETED).length;
+    const pct = Math.round(done/p.tasks.length*100);
+    barsHTML += `<div class="task-bar${done===p.tasks.length?' completed':''}" style="left:${left}px;width:${width}px;top:${i*ROW_H+8}px;background:${p.color}" onclick="switchPhase(${i+1})">
+      <span class="bar-label">${p.icon} ${p.name} ${pct}%</span>
+    </div>`;
+  });
+
+  // Today line
+  const todayOffset = diffDays(projectStart, new Date());
+  if(todayOffset>=0 && todayOffset<=totalDays){
+    barsHTML += `<div class="today-line" style="left:${todayOffset*DAY_W+DAY_W/2}px"><span class="today-label">今天</span></div>`;
+  }
+
+  barsHTML += '</div>';
+  timeline.innerHTML = weekHTML + barsHTML;
+}
+
+// ==================== DETAIL GANTT ====================
+function renderDetailGantt(sidebar, timeline){
+  const phase = phases[currentPhase-1];
+  const tasks = phase.tasks;
+
+  if(!tasks.length){
+    sidebar.innerHTML = `<div class="gh-cell">任务项</div>`;
+    timeline.innerHTML = `<div class="bars-area" style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--text3);font-size:14px">
+      暂无子项，点击上方「+ 新增子项」添加
+    </div>`;
+    return;
+  }
+
+  // Calculate date range for this phase
+  const phaseStartDay = Math.min(...tasks.map(t => t._startDay||0));
+  let maxDay = 0;
+  tasks.forEach(t => {
+    const relStart = (t._startDay||0) - phaseStartDay;
+    const end = relStart + t.duration;
+    if(end > maxDay) maxDay = end;
+  });
+  const totalDays = maxDay + 3; // padding
+  const totalWidth = totalDays * DAY_W;
+
+  // Sidebar
+  let sideHTML = `<div class="gh-cell">任务项</div>`;
+  tasks.forEach((t,i) => {
+    const status = getTaskStatus(t);
+    const borderColor = status===STATUS.COMPLETED?'var(--green)':status===STATUS.ACTIVE?'var(--primary)':'var(--gray)';
+    const bgColor = status===STATUS.COMPLETED?'var(--green)':'#fff';
+    sideHTML += `<div class="task-row ${selectedTask===t.id?'selected':''}" onclick="openDetail('${t.id}')">
+      <span class="task-status-dot" style="border-color:${borderColor};background:${bgColor}"></span>
+      <span class="task-name">${t.name}</span>
+      <span class="task-days">${t.duration}天</span>
+    </div>`;
+  });
+  sidebar.innerHTML = sideHTML;
+
+  // Timeline header
+  let weekHTML = '<div class="timeline-header">';
+  for(let d=0;d<totalDays;d+=7){
+    const dt = addDays(projectStart, phaseStartDay + d);
+    const daysInWeek = Math.min(7, totalDays-d);
+    weekHTML += `<div class="week-cell" style="width:${daysInWeek*DAY_W}px">${dt.getMonth()+1}/${dt.getDate()}</div>`;
+  }
+  weekHTML += '</div>';
+
+  // Bars area
+  let barsHTML = `<div class="bars-area" style="width:${totalWidth}px;height:${tasks.length*ROW_H}px">`;
+
+  // Day grid (relative to phase start)
+  barsHTML += '<div class="day-grid">';
+  for(let d=0;d<totalDays;d++){
+    const dt = addDays(projectStart, phaseStartDay + d);
+    const dow = dt.getDay();
+    const isToday = formatDateFull(dt)===formatDateFull(new Date());
+    barsHTML += `<div class="day-cell${dow===0||dow===6?' weekend':''}${isToday?' today-col':''}"></div>`;
+  }
+  barsHTML += '</div>';
+
+  // Task bars
+  tasks.forEach((t,i) => {
+    const relStart = (t._startDay||0) - phaseStartDay;
+    const left = relStart * DAY_W;
+    const width = t.duration * DAY_W;
+    const status = getTaskStatus(t);
+    let bgColor = phase.color;
+    if(status===STATUS.COMPLETED) bgColor = '#86efac';
+    else if(status===STATUS.ACTIVE) bgColor = phase.color;
+    else bgColor = phase.color+'99';
+
+    barsHTML += `<div class="task-bar${status===STATUS.COMPLETED?' completed':''}" style="left:${left}px;width:${width}px;top:${i*ROW_H+8}px;background:${bgColor}" onclick="openDetail('${t.id}')">
+      <span class="bar-label">${t.name}</span>
+    </div>`;
+  });
+
+  // Today line
+  const todayGlobal = diffDays(projectStart, new Date());
+  const todayOffset = todayGlobal - phaseStartDay;
+  if(todayOffset>=0 && todayOffset<=totalDays){
+    barsHTML += `<div class="today-line" style="left:${todayOffset*DAY_W+DAY_W/2}px"><span class="today-label">今天</span></div>`;
+  }
+
+  // SVG for dependency arrows
+  barsHTML += `<svg class="dep-svg" id="depSvg" width="${totalWidth}" height="${tasks.length*ROW_H}" viewBox="0 0 ${totalWidth} ${tasks.length*ROW_H}">
+    <defs>
+      <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+      </marker>
+    </defs>
+  </svg>`;
+
+  barsHTML += '</div>';
+  timeline.innerHTML = weekHTML + barsHTML;
+
+  // Draw arrows after DOM update
+  requestAnimationFrame(() => drawDependencyArrows(tasks, phase));
+}
+
+// ==================== DEPENDENCY ARROWS ====================
+function drawDependencyArrows(tasks, phase){
+  const svg = document.getElementById('depSvg');
+  if(!svg) return;
+
+  const phaseStartDay = Math.min(...tasks.map(t => t._startDay||0));
+
+  tasks.forEach((task, ti) => {
+    if(!task.predecessors) return;
+    task.predecessors.forEach(predId => {
+      const pi = tasks.findIndex(t=>t.id===predId);
+      if(pi===-1) return;
+      const pred = tasks[pi];
+
+      const predRelStart = (pred._startDay||0) - phaseStartDay;
+      const predEnd = predRelStart + pred.duration + (pred.gap||0);
+      const taskRelStart = (task._startDay||0) - phaseStartDay;
+
+      const x1 = predEnd * DAY_W;
+      const y1 = pi * ROW_H + ROW_H/2;
+      const x2 = taskRelStart * DAY_W;
+      const y2 = ti * ROW_H + ROW_H/2;
+
+      if(x2 <= x1) return; // skip backward arrows
+
+      const dx = x2 - x1;
+      const cpx = dx * 0.4;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', `M${x1},${y1} C${x1+cpx},${y1} ${x2-cpx},${y2} ${x2},${y2}`);
+      path.setAttribute('stroke','#94a3b8');
+      path.setAttribute('stroke-width','1.5');
+      path.setAttribute('fill','none');
+      path.setAttribute('stroke-dasharray','4,3');
+      path.setAttribute('marker-end','url(#arrowhead)');
+      svg.appendChild(path);
+    });
+  });
+}
+
+// ==================== DETAIL PANEL ====================
+function openDetail(taskId){
+  selectedTask = taskId;
+  const found = findTask(taskId);
+  if(!found) return;
+  const {task, phase} = found;
+  const panel = document.getElementById('detailPanel');
+  const overlay = document.getElementById('overlay');
+
+  const start = addDays(projectStart, task._startDay||0);
+  const end = addDays(start, task.duration);
+  const status = getTaskStatus(task);
+
+  // Find predecessor names
+  const preds = (task.predecessors||[]).map(id => {
+    const f = findTask(id);
+    return f ? {id, name:f.task.name, phaseName:f.phase.name} : null;
+  }).filter(Boolean);
+
+  // Find parallel info
+  const parallels = (task.parallel||[]).map(id => {
+    const f = findTask(id);
+    return f ? {id, name:f.task.name} : null;
+  }).filter(Boolean);
+
+  // Find successors
+  const allTasks = phases.flatMap(p=>p.tasks);
+  const successors = allTasks.filter(t => (t.predecessors||[]).includes(taskId)).map(t=>({id:t.id,name:t.name}));
+
+  document.getElementById('panelTitle').textContent = task.name;
+  document.getElementById('panelBody').innerHTML = `
+    <div class="field">
+      <label>任务状态</label>
+      <div class="status-btns">
+        <button class="status-btn s-pending ${status===STATUS.PENDING?'active':''}" onclick="changeStatus('${taskId}','pending')">未开始</button>
+        <button class="status-btn s-active ${status===STATUS.ACTIVE?'active':''}" onclick="changeStatus('${taskId}','active')">进行中</button>
+        <button class="status-btn s-done ${status===STATUS.COMPLETED?'active':''}" onclick="changeStatus('${taskId}','completed')">已完成</button>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>开始日期</label>
+        <input type="date" value="${formatDateFull(start)}" onchange="changeStartDate('${taskId}',this.value)">
+      </div>
+      <div class="field">
+        <label>工期 (天)</label>
+        <input type="number" min="1" max="365" value="${task.duration}" onchange="changeDuration('${taskId}',this.value)">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>预计结束</label>
+        <input type="text" value="${formatDateFull(end)}" disabled style="background:#f9fafb">
+      </div>
+      <div class="field">
+        <label>所属阶段</label>
+        <input type="text" value="${phase.icon} ${phase.name}" disabled style="background:#f9fafb">
+      </div>
+    </div>
+    ${preds.length?`<div class="field">
+      <label>前置任务 (完成后才能开始)</label>
+      <ul class="dep-list">${preds.map(p=>`<li><span class="dep-badge">前置</span>${p.name}</li>`).join('')}</ul>
+    </div>`:''}
+    ${parallels.length?`<div class="field">
+      <label>可并行执行</label>
+      <ul class="dep-list">${parallels.map(p=>`<li><span class="parallel-badge">并行</span>${p.name}</li>`).join('')}</ul>
+    </div>`:''}
+    ${successors.length?`<div class="field">
+      <label>后续任务 (依赖本任务)</label>
+      <ul class="dep-list">${successors.map(s=>`<li>→ ${s.name}</li>`).join('')}</ul>
+    </div>`:''}
+    <div class="field">
+      <label>备注</label>
+      <textarea placeholder="添加备注..." onchange="changeNote('${taskId}',this.value)">${task.note||''}</textarea>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px;display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="editTask('${taskId}')" style="flex:1">✎ 编辑任务</button>
+      <button class="btn btn-outline" onclick="deleteTask('${taskId}')" style="flex:1;color:var(--red);border-color:var(--red)">删除任务</button>
+    </div>
+  `;
+
+  panel.classList.add('open');
+  overlay.classList.add('open');
+  render();
+}
+
+function closeDetail(){
+  document.getElementById('detailPanel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+  selectedTask = null;
+  render();
+}
+
+function changeStatus(taskId, status){
+  const found = findTask(taskId);
+  if(found){ setTaskStatus(found.task, status); recalcAll(); openDetail(taskId); }
+}
+
+function changeDuration(taskId, val){
+  const found = findTask(taskId);
+  if(found){
+    found.task.duration = Math.max(1, parseInt(val)||1);
+    recalcAll(); save(); render(); openDetail(taskId);
+  }
+}
+
+function changeStartDate(taskId, val){
+  const found = findTask(taskId);
+  if(!found) return;
+  if(currentPhase > 0){
+    const phase = phases[currentPhase-1];
+    if(!found.task.predecessors || found.task.predecessors.length===0){
+      projectStart = new Date(val);
+      recalcAll(); save(); render(); openDetail(taskId);
+    }
+  }
+}
+
+function changeNote(taskId, val){
+  const found = findTask(taskId);
+  if(found){ found.task.note = val; save(); }
+}
+
+// ==================== MODAL SYSTEM ====================
+function openModal(title, bodyHTML, footerHTML){
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHTML;
+  document.getElementById('modalFoot').innerHTML = footerHTML;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function generateId(){
+  return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+// Remove a taskId from all predecessor and parallel lists
+function cleanTaskReferences(taskId){
+  phases.forEach(p => p.tasks.forEach(t => {
+    if(t.predecessors) t.predecessors = t.predecessors.filter(id => id !== taskId);
+    if(t.parallel) t.parallel = t.parallel.filter(id => id !== taskId);
+  }));
+}
+
+// ==================== PHASE CRUD ====================
+function addPhase(){
+  const icons = ['📋','🔨','⚡','💧','🧱','🪚','🎨','📐','🔧','🛋️','🏗️','💡','🪟','🚿','🧹','🎯','📦','🪜'];
+  const colors = PHASE_COLORS.concat(['#5C6BC0','#26C6DA','#9CCC65','#FF8A65','#BA68C8','#4DB6AC']);
+
+  const body = `
+    <div class="field">
+      <label>阶段名称</label>
+      <input type="text" id="mPhaseName" placeholder="例如：智能家居" autofocus>
+    </div>
+    <div class="field">
+      <label>图标</label>
+      <div class="icon-picker" id="mPhaseIcons">
+        ${icons.map((ic,i) => `<span class="icon-opt${i===0?' selected':''}" data-icon="${ic}" onclick="pickIcon(this)">${ic}</span>`).join('')}
+      </div>
+    </div>
+    <div class="field">
+      <label>颜色</label>
+      <div class="color-picker" id="mPhaseColors">
+        ${colors.map((c,i) => `<span class="color-dot${i===0?' selected':''}" style="background:${c}" data-color="${c}" onclick="pickColor(this)"></span>`).join('')}
+      </div>
+    </div>
+  `;
+  const footer = `
+    <button class="btn-cancel" onclick="closeModal()">取消</button>
+    <button class="btn-save" onclick="confirmAddPhase()">添加</button>
+  `;
+  openModal('新增阶段', body, footer);
+  setTimeout(() => document.getElementById('mPhaseName')?.focus(), 100);
+}
+
+function pickIcon(el){
+  el.parentElement.querySelectorAll('.icon-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function pickColor(el){
+  el.parentElement.querySelectorAll('.color-dot').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function confirmAddPhase(){
+  const name = document.getElementById('mPhaseName').value.trim();
+  if(!name){ alert('请输入阶段名称'); return; }
+  const icon = document.querySelector('#mPhaseIcons .selected')?.dataset.icon || '📋';
+  const color = document.querySelector('#mPhaseColors .selected')?.dataset.color || PHASE_COLORS[0];
+
+  phases.push({id: generateId(), name, icon, color, tasks:[]});
+  recalcAll(); save();
+  closeModal();
+  currentPhase = phases.length;
+  render();
+}
+
+function editPhase(idx){
+  const phase = phases[idx];
+  const icons = ['📋','🔨','⚡','💧','🧱','🪚','🎨','📐','🔧','🛋️','🏗️','💡','🪟','🚿','🧹','🎯','📦','🪜'];
+  const colors = PHASE_COLORS.concat(['#5C6BC0','#26C6DA','#9CCC65','#FF8A65','#BA68C8','#4DB6AC']);
+
+  const body = `
+    <div class="field">
+      <label>阶段名称</label>
+      <input type="text" id="mPhaseName" value="${phase.name}">
+    </div>
+    <div class="field">
+      <label>图标</label>
+      <div class="icon-picker" id="mPhaseIcons">
+        ${icons.map(ic => `<span class="icon-opt${ic===phase.icon?' selected':''}" data-icon="${ic}" onclick="pickIcon(this)">${ic}</span>`).join('')}
+      </div>
+    </div>
+    <div class="field">
+      <label>颜色</label>
+      <div class="color-picker" id="mPhaseColors">
+        ${colors.map(c => `<span class="color-dot${c===phase.color?' selected':''}" style="background:${c}" data-color="${c}" onclick="pickColor(this)"></span>`).join('')}
+      </div>
+    </div>
+  `;
+  const footer = `
+    <button class="btn-cancel" onclick="closeModal()">取消</button>
+    <button class="btn-save" onclick="confirmEditPhase(${idx})">保存</button>
+  `;
+  openModal('编辑阶段', body, footer);
+}
+
+function confirmEditPhase(idx){
+  const name = document.getElementById('mPhaseName').value.trim();
+  if(!name){ alert('请输入阶段名称'); return; }
+  const icon = document.querySelector('#mPhaseIcons .selected')?.dataset.icon || phases[idx].icon;
+  const color = document.querySelector('#mPhaseColors .selected')?.dataset.color || phases[idx].color;
+  phases[idx].name = name;
+  phases[idx].icon = icon;
+  phases[idx].color = color;
+  save(); closeModal(); render();
+}
+
+function deletePhase(idx){
+  const phase = phases[idx];
+  if(!confirm(`确定删除阶段「${phase.icon} ${phase.name}」及其所有子项？\n其他阶段中对该阶段任务的引用将自动清除。`)) return;
+
+  // Clean up all references to tasks in this phase
+  phase.tasks.forEach(t => cleanTaskReferences(t.id));
+  phases.splice(idx, 1);
+  recalcAll(); save();
+  currentPhase = 0;
+  render();
+}
+
+// ==================== TASK CRUD ====================
+function buildDepCheckboxes(phase, currentTaskId, selectedIds, type){
+  let html = '';
+  phases.forEach((p, pi) => {
+    const available = p.tasks.filter(t => t.id !== currentTaskId);
+    if(!available.length) return;
+    html += `<div class="dep-group-title">${p.icon} ${p.name}</div>`;
+    available.forEach(t => {
+      const checked = selectedIds.includes(t.id) ? 'checked' : '';
+      html += `<label class="dep-check"><input type="checkbox" ${checked} value="${t.id}" data-type="${type}"> ${t.name}</label>`;
+    });
+  });
+  return html || '<div style="color:var(--text3);font-size:12px;padding:8px 0">暂无可选任务</div>';
+}
+
+function addTaskToPhase(phaseIdx){
+  const phase = phases[phaseIdx];
+  const body = `
+    <div class="field">
+      <label>任务名称</label>
+      <input type="text" id="mTaskName" placeholder="例如：墙面打磨" autofocus>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>工期 (天)</label>
+        <input type="number" id="mTaskDuration" value="1" min="1" max="365">
+      </div>
+      <div class="field">
+        <label>间隔天数 (完成后等待)</label>
+        <input type="number" id="mTaskGap" value="0" min="0" max="365">
+      </div>
+    </div>
+    <div class="field">
+      <label>前置任务 (完成后才能开始)</label>
+      <div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px">
+        ${buildDepCheckboxes(phase, null, [], 'pred')}
+      </div>
+    </div>
+    <div class="field">
+      <label>可并行执行 (勾选与此任务同时进行的任务)</label>
+      <div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px">
+        ${buildDepCheckboxes(phase, null, [], 'par')}
+      </div>
+    </div>
+    <div class="field">
+      <label>备注</label>
+      <textarea id="mTaskNote" placeholder="选填"></textarea>
+    </div>
+  `;
+  const footer = `
+    <button class="btn-cancel" onclick="closeModal()">取消</button>
+    <button class="btn-save" onclick="confirmAddTask(${phaseIdx})">添加</button>
+  `;
+  openModal(`新增子项 → ${phase.icon} ${phase.name}`, body, footer);
+  setTimeout(() => document.getElementById('mTaskName')?.focus(), 100);
+}
+
+function confirmAddTask(phaseIdx){
+  const name = document.getElementById('mTaskName').value.trim();
+  if(!name){ alert('请输入任务名称'); return; }
+  const duration = Math.max(1, parseInt(document.getElementById('mTaskDuration').value) || 1);
+  const gap = Math.max(0, parseInt(document.getElementById('mTaskGap').value) || 0);
+  const note = document.getElementById('mTaskNote').value.trim();
+
+  const predecessors = [...document.querySelectorAll('input[data-type="pred"]:checked')].map(el => el.value);
+  const parallel = [...document.querySelectorAll('input[data-type="par"]:checked')].map(el => el.value);
+
+  const task = {id: generateId(), name, duration, gap: gap||undefined, predecessors, parallel, note: note||undefined};
+  phases[phaseIdx].tasks.push(task);
+  recalcAll(); save();
+  closeModal();
+  currentPhase = phaseIdx + 1;
+  render();
+}
+
+function editTask(taskId){
+  const found = findTask(taskId);
+  if(!found) return;
+  const {task, phase} = found;
+  const phaseIdx = phases.indexOf(phase);
+
+  const body = `
+    <div class="field">
+      <label>任务名称</label>
+      <input type="text" id="mTaskName" value="${task.name}">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>工期 (天)</label>
+        <input type="number" id="mTaskDuration" value="${task.duration}" min="1" max="365">
+      </div>
+      <div class="field">
+        <label>间隔天数</label>
+        <input type="number" id="mTaskGap" value="${task.gap||0}" min="0" max="365">
+      </div>
+    </div>
+    <div class="field">
+      <label>前置任务 (完成后才能开始)</label>
+      <div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px">
+        ${buildDepCheckboxes(phase, taskId, task.predecessors||[], 'pred')}
+      </div>
+    </div>
+    <div class="field">
+      <label>可并行执行</label>
+      <div style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px">
+        ${buildDepCheckboxes(phase, taskId, task.parallel||[], 'par')}
+      </div>
+    </div>
+    <div class="field">
+      <label>备注</label>
+      <textarea id="mTaskNote">${task.note||''}</textarea>
+    </div>
+  `;
+  const footer = `
+    <button class="btn-cancel" onclick="closeModal()">取消</button>
+    <button class="btn-save" onclick="confirmEditTask('${taskId}')">保存</button>
+  `;
+  openModal(`编辑任务 → ${phase.icon} ${phase.name}`, body, footer);
+}
+
+function confirmEditTask(taskId){
+  const found = findTask(taskId);
+  if(!found) return;
+  const name = document.getElementById('mTaskName').value.trim();
+  if(!name){ alert('请输入任务名称'); return; }
+  const duration = Math.max(1, parseInt(document.getElementById('mTaskDuration').value) || 1);
+  const gap = Math.max(0, parseInt(document.getElementById('mTaskGap').value) || 0);
+  const note = document.getElementById('mTaskNote').value.trim();
+
+  const predecessors = [...document.querySelectorAll('input[data-type="pred"]:checked')].map(el => el.value);
+  const parallel = [...document.querySelectorAll('input[data-type="par"]:checked')].map(el => el.value);
+
+  found.task.name = name;
+  found.task.duration = duration;
+  found.task.gap = gap || undefined;
+  found.task.predecessors = predecessors;
+  found.task.parallel = parallel;
+  found.task.note = note || undefined;
+
+  recalcAll(); save(); closeModal();
+  openDetail(taskId);
+}
+
+function deleteTask(taskId){
+  const found = findTask(taskId);
+  if(!found) return;
+  if(!confirm(`确定删除任务「${found.task.name}」？\n其他任务中对该任务的引用将自动清除。`)) return;
+
+  cleanTaskReferences(taskId);
+  const phase = found.phase;
+  phase.tasks = phase.tasks.filter(t => t.id !== taskId);
+  recalcAll(); save();
+
+  // Close detail panel
+  document.getElementById('detailPanel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+  selectedTask = null;
+  render();
+}
+
+// ==================== KEYBOARD ====================
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') closeDetail();
+});
+
+// ==================== START ====================
+init();
+</script>
+</body>
+</html>

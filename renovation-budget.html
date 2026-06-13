@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家庭装修预算助手</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f0f2f5;--card:#fff;--primary:#4A7BF7;--primary-light:#EBF1FF;
+  --text:#1a1a2e;--text2:#6b7280;--text3:#9ca3af;--border:#e5e7eb;
+  --green:#22c55e;--green-bg:#f0fdf4;--yellow:#f59e0b;--yellow-bg:#fffbeb;
+  --red:#ef4444;--red-bg:#fef2f2;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+button{font:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font:inherit}
+
+/* === HEADER === */
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.header h1{font-size:18px;font-weight:600;white-space:nowrap}
+.header-right{margin-left:auto;display:flex;gap:8px}
+.btn{padding:7px 16px;border-radius:7px;font-size:13px;transition:all .15s;font-weight:500}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{opacity:.9}
+.btn-outline{border:1px solid var(--border);color:var(--text2)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{opacity:.85}
+.btn-sm{padding:4px 10px;font-size:12px;border-radius:5px}
+
+/* === STATS === */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 24px;flex-shrink:0}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.stat-card.warning{border-left:4px solid var(--red)}
+.stat-card.ok{border-left:4px solid var(--green)}
+.stat-card.neutral{border-left:4px solid var(--primary)}
+.stat-card.warn{border-left:4px solid var(--yellow)}
+.stat-label{font-size:12px;color:var(--text3);margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:700}
+.stat-value.red{color:var(--red)}
+.stat-value.green{color:var(--green)}
+.stat-value.yellow{color:var(--yellow)}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.stat-bar{height:4px;background:#e5e7eb;border-radius:2px;margin-top:8px;overflow:hidden}
+.stat-bar-fill{height:100%;border-radius:2px;transition:width .4s}
+
+/* === ALERT === */
+.alert{margin:0 24px;padding:12px 16px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.alert-danger{background:var(--red-bg);color:#991b1b;border:1px solid #fecaca}
+.alert-warning{background:var(--yellow-bg);color:#92400e;border:1px solid #fde68a}
+.alert-icon{font-size:18px;flex-shrink:0}
+.alert-close{margin-left:auto;opacity:.5;font-size:16px}
+.alert-close:hover{opacity:1}
+
+/* === CONTENT === */
+.content{flex:1;padding:0 24px 24px;overflow-y:auto}
+
+/* === CATEGORY === */
+.category{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;border-left:4px solid var(--border);transition:border-color .2s,box-shadow .2s}
+.category.cat-ok{border-left-color:var(--green)}
+.category.cat-ok:hover{box-shadow:0 1px 6px rgba(34,197,94,.15)}
+.category.cat-over{border-left-color:var(--red);box-shadow:0 1px 6px rgba(239,68,68,.12)}
+.category.cat-over:hover{box-shadow:0 2px 10px rgba(239,68,68,.2)}
+.category.cat-empty{border-left-color:var(--border)}
+.cat-over-badge{display:inline-flex;align-items:center;gap:3px;background:var(--red-bg);color:var(--red);font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:8px;animation:pulse-over 2s infinite}
+@keyframes pulse-over{0%,100%{opacity:1}50%{opacity:.7}}
+.cat-header{display:flex;align-items:center;padding:14px 20px;cursor:pointer;transition:background .1s;gap:12px;border-bottom:1px solid transparent}
+.cat-header:hover{background:#fafbfc}
+.cat-header.expanded{border-bottom-color:var(--border)}
+.cat-icon{font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#f3f4f6;flex-shrink:0}
+.cat-info{flex:1;min-width:0}
+.cat-name{font-size:15px;font-weight:600}
+.cat-meta{font-size:12px;color:var(--text3);margin-top:2px}
+.cat-amounts{display:flex;gap:24px;align-items:center;flex-shrink:0}
+.cat-amount{text-align:right}
+.cat-amount-label{font-size:10px;color:var(--text3);text-transform:uppercase}
+.cat-amount-value{font-size:15px;font-weight:600}
+.cat-amount-value.over{color:var(--red)}
+.cat-arrow{color:var(--text3);transition:transform .2s;font-size:12px;margin-left:8px}
+.cat-header.expanded .cat-arrow{transform:rotate(90deg)}
+.cat-progress{height:3px;background:#e5e7eb;margin:0 20px 0 68px}
+.cat-progress-fill{height:100%;border-radius:2px;transition:width .3s}
+
+/* Items */
+.cat-items{display:none}
+.cat-items.open{display:block}
+.item-row{display:grid;grid-template-columns:1fr 120px 120px 100px 60px;align-items:center;padding:10px 20px 10px 68px;border-bottom:1px solid #f3f4f6;font-size:13px;transition:background .1s}
+.item-row:hover{background:#fafbfc}
+.item-row:last-child{border-bottom:none}
+.item-name{font-weight:500}
+.item-budget,.item-actual{font-variant-numeric:tabular-nums}
+.item-diff{font-weight:600;font-variant-numeric:tabular-nums}
+.item-diff.over{color:var(--red)}
+.item-diff.under{color:var(--green)}
+.item-diff.zero{color:var(--text3)}
+.item-actions{display:flex;gap:4px;justify-content:flex-end}
+.item-actions button{width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:5px;font-size:12px;color:var(--text3);transition:all .1s}
+.item-actions button:hover{background:#f3f4f6;color:var(--text)}
+.item-actions .del-btn:hover{background:var(--red-bg);color:var(--red)}
+.add-item-row{padding:8px 20px 8px 68px;border-top:1px solid var(--border)}
+.add-item-btn{width:100%;padding:6px;border:1px dashed var(--border);border-radius:6px;color:var(--text3);font-size:12px;text-align:center;transition:all .15s}
+.add-item-btn:hover{border-color:var(--primary);color:var(--primary)}
+
+/* Column header */
+.col-header{display:grid;grid-template-columns:1fr 120px 120px 100px 60px;padding:6px 20px 6px 68px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--border);background:#fafbfc}
+
+/* === ADD CATEGORY BUTTON === */
+.add-cat-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px;padding:14px 20px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text3);font-size:14px;cursor:pointer;transition:all .15s;border:2px dashed transparent}
+.add-cat-card:hover{border-color:var(--primary);color:var(--primary)}
+
+/* === MODAL === */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal{background:var(--card);border-radius:12px;width:440px;box-shadow:0 12px 40px rgba(0,0,0,.18);transform:scale(.95);transition:transform .2s}
+.modal-overlay.open .modal{transform:scale(1)}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--border);font-size:16px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.modal-body{padding:20px}
+.modal-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.close-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:18px;color:var(--text3)}
+.close-btn:hover{background:#f3f4f6;color:var(--text)}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;outline:none;transition:border .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
+.field textarea{resize:vertical;min-height:50px}
+.field-row{display:flex;gap:10px}
+.field-row .field{flex:1}
+.field-hint{font-size:11px;color:var(--text3);margin-top:3px}
+
+.icon-picker{display:flex;gap:6px;flex-wrap:wrap}
+.icon-opt{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:2px solid var(--border);border-radius:8px;cursor:pointer;font-size:17px;transition:all .12s}
+.icon-opt:hover{border-color:var(--primary)}
+.icon-opt.selected{border-color:var(--primary);background:var(--primary-light)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}
+
+/* Category edit/delete buttons */
+.cat-actions{display:flex;gap:4px;margin-left:8px;opacity:0;transition:opacity .15s}
+.cat-header:hover .cat-actions{opacity:1}
+.cat-actions button{width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:5px;font-size:12px;color:var(--text3);transition:all .1s}
+.cat-actions button:hover{background:#f3f4f6;color:var(--text)}
+.cat-actions .del-btn:hover{background:var(--red-bg);color:var(--red)}
+
+/* === EMPTY STATE === */
+.empty-hint{text-align:center;padding:40px;color:var(--text3);font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>💰 家庭装修预算助手</h1>
+  <div class="header-right">
+    <button class="btn btn-outline" onclick="resetData()">重置</button>
+    <button class="btn btn-outline" onclick="exportData()">导出</button>
+    <button class="btn btn-outline" onclick="importData()">导入</button>
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar"></div>
+<div id="alertArea"></div>
+<div class="content" id="content"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <span id="modalTitle"></span>
+      <button class="close-btn" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<script>
+// ==================== CONSTANTS ====================
+const ICONS = ['🔨','⚡','💧','🧱','🪚','🎨','📐','🔧','🛋️','🏗️','💡','🪟','🚿','🧹','📺','🍳','🛏️','🪑','🚪','🪞','🧊','👕','🎯','📦'];
+
+// ==================== DEFAULT DATA ====================
+function getDefaultCategories(){
+return [
+  {id:"c1",name:"设计",icon:"✏️",items:[
+    {id:"i3",name:"设计费[全屋]",budget:35000,actual:35000},
+  ]},
+  {id:"c2",name:"土建",icon:"🏗️",items:[
+    {id:"i4",name:"土建费用[全屋]",budget:120000,actual:133000},
+  ]},
+  {id:"c3",name:"违建",icon:"🚧",items:[
+    {id:"i5",name:"违建[全屋]",budget:80000,actual:7200},
+  ]},
+  {id:"c4",name:"基装",icon:"🧱",items:[
+    {id:"i6",name:"基装/半包费用[全屋]",budget:432000,actual:441916},
+  ]},
+  {id:"c5",name:"门窗",icon:"🪟",items:[
+    {id:"i7",name:"窗户[露台]",budget:47515,actual:45000},
+    {id:"i8",name:"玻璃棚[花园大门]",budget:4000,actual:20000},
+    {id:"i9",name:"大雨伞[次花园]",budget:1000,actual:0},
+    {id:"i10",name:"大门[车库]",budget:3000,actual:3800},
+    {id:"i11",name:"大门[客厅]",budget:6000,actual:8200},
+    {id:"i12",name:"花园门[花园]",budget:600,actual:0},
+    {id:"i13",name:"瓷砖/地板[客餐厅]",budget:0,actual:0},
+    {id:"i14",name:"瓷砖/地板[客卧]",budget:0,actual:0},
+    {id:"i15",name:"瓷砖/地板[阳台]",budget:0,actual:0},
+    {id:"i16",name:"瓷砖/地板[厨房]",budget:0,actual:0},
+    {id:"i17",name:"瓷砖/地板[生活阳台]",budget:0,actual:0},
+    {id:"i18",name:"瓷砖/地板[全屋]",budget:0,actual:0},
+    {id:"i19",name:"瓷砖/地板[客餐厅]",budget:0,actual:0},
+    {id:"i20",name:"瓷砖/地板[卫生间]",budget:0,actual:0},
+    {id:"i21",name:"踢脚线[全屋]",budget:0,actual:0},
+    {id:"i22",name:"美缝[全屋]",budget:0,actual:0},
+    {id:"i23",name:"人工[全屋]",budget:0,actual:0},
+    {id:"i24",name:"石材[全屋]",budget:0,actual:0},
+    {id:"i25",name:"石材[全屋]",budget:0,actual:0},
+    {id:"i26",name:"室内门[全屋]",budget:0,actual:0},
+    {id:"i27",name:"室内门[客餐厅]",budget:0,actual:0},
+    {id:"i28",name:"室内门[玄关]",budget:0,actual:0},
+    {id:"i29",name:"室内门[主卧]",budget:0,actual:0},
+    {id:"i30",name:"室内门",budget:0,actual:0},
+    {id:"i31",name:"油漆[客厅]",budget:0,actual:0},
+    {id:"i32",name:"油漆[卧室]",budget:0,actual:0},
+    {id:"i33",name:"油漆[阳台]",budget:0,actual:0},
+    {id:"i34",name:"墙纸[全屋]",budget:0,actual:0},
+    {id:"i35",name:"墙布[全屋]",budget:0,actual:0},
+    {id:"i36",name:"洁具卫具[主卫]",budget:0,actual:0},
+    {id:"i37",name:"洁具卫具[客卫]",budget:0,actual:0},
+    {id:"i38",name:"洁具卫具[主卫]",budget:0,actual:0},
+    {id:"i39",name:"洁具卫具[客卫]",budget:0,actual:0},
+    {id:"i40",name:"洁具卫具[主卫]",budget:0,actual:0},
+    {id:"i41",name:"洁具卫具[厨房]",budget:0,actual:0},
+    {id:"i42",name:"洁具卫具[主卫]",budget:0,actual:0},
+    {id:"i43",name:"洁具卫具[客卫]",budget:0,actual:0},
+    {id:"i44",name:"洁具卫具[主卫]",budget:0,actual:0},
+    {id:"i45",name:"洁具卫具[客卫]",budget:0,actual:0},
+    {id:"i46",name:"洁具卫具[主卫]",budget:0,actual:0},
+    {id:"i47",name:"洁具卫具[客卫]",budget:0,actual:0},
+    {id:"i48",name:"洁具卫具[阳台]",budget:0,actual:0},
+    {id:"i49",name:"洁具卫具[厨房]",budget:0,actual:0},
+    {id:"i50",name:"洁具卫具[生活阳台]",budget:0,actual:0},
+    {id:"i51",name:"灯具[全屋]",budget:0,actual:0},
+    {id:"i52",name:"灯具[全屋]",budget:0,actual:0},
+    {id:"i53",name:"灯具[全屋]",budget:0,actual:0},
+    {id:"i54",name:"灯具[全屋]",budget:0,actual:0},
+    {id:"i55",name:"灯具[全屋]",budget:0,actual:0},
+    {id:"i56",name:"灯具[全屋]",budget:0,actual:0},
+    {id:"i57",name:"灯具[厨房]",budget:0,actual:0},
+    {id:"i58",name:"灯具[卫生间]",budget:0,actual:0},
+    {id:"i59",name:"开关插座[全屋]",budget:0,actual:0},
+    {id:"i60",name:"开关插座[全屋]",budget:0,actual:0},
+    {id:"i61",name:"吊顶[全屋]",budget:0,actual:0},
+    {id:"i62",name:"吊顶[卫生间]",budget:0,actual:0},
+    {id:"i63",name:"吊顶[厨房]",budget:0,actual:0},
+  ]},
+  {id:"c6",name:"全屋定制",icon:"📐",items:[
+    {id:"i64",name:"全屋定制[全屋]",budget:53910,actual:0},
+  ]},
+  {id:"c7",name:"灯具",icon:"💡",items:[
+    {id:"i65",name:"全屋灯具[全屋]",budget:12000,actual:0},
+  ]},
+  {id:"c8",name:"成品家具",icon:"🛋️",items:[
+    {id:"i66",name:"成品沙发[一楼]",budget:12000,actual:0},
+    {id:"i67",name:"成品沙发[负一楼]",budget:6000,actual:0},
+    {id:"i68",name:"成品沙发[负二楼]",budget:10000,actual:0},
+    {id:"i69",name:"成品床[全屋]",budget:14000,actual:0},
+    {id:"i70",name:"餐桌[全屋]",budget:7000,actual:0},
+    {id:"i71",name:"浴缸[主卧]",budget:5000,actual:0},
+    {id:"i72",name:"椅子[生活阳台]",budget:800,actual:0},
+    {id:"i73",name:"鞋柜[大门处]",budget:500,actual:0},
+    {id:"i74",name:"茶几[一楼客厅]",budget:1000,actual:0},
+  ]},
+  {id:"c9",name:"家电",icon:"📺",items:[
+    {id:"i75",name:"电视机[客餐厅]",budget:8000,actual:0},
+    {id:"i76",name:"空调[全屋]",budget:55000,actual:55000},
+    {id:"i77",name:"投影仪[客厅]",budget:5000,actual:0},
+    {id:"i78",name:"热水器[全屋]",budget:11000,actual:11000},
+    {id:"i79",name:"洗衣机[阳台]",budget:6000,actual:0},
+    {id:"i80",name:"烘干机[阳台]",budget:6000,actual:0},
+    {id:"i81",name:"油烟机/集成灶[厨房]",budget:13000,actual:11500},
+    {id:"i82",name:"冰箱[客餐厅]",budget:13000,actual:10000},
+    {id:"i83",name:"洗碗机[厨房]",budget:9000,actual:0},
+    {id:"i84",name:"微波炉[厨房]",budget:0,actual:0},
+    {id:"i85",name:"净水器[客餐厅]",budget:14000,actual:21000},
+    {id:"i86",name:"扫地机器人[客餐厅]",budget:6000,actual:0},
+    {id:"i87",name:"路由器[客餐厅]",budget:900,actual:0},
+    {id:"i88",name:"监控[全屋]",budget:800,actual:0},
+  ]},
+  {id:"c10",name:"杂项",icon:"📦",items:[
+    {id:"i89",name:"外墙修复[全屋]",budget:8000,actual:18000},
+    {id:"i90",name:"地毯[客餐厅]",budget:1000,actual:0},
+    {id:"i91",name:"绿植[客餐厅]",budget:4000,actual:0},
+    {id:"i92",name:"楼梯[客餐厅]",budget:60000,actual:39930},
+    {id:"i93",name:"摆件/饰品[全屋]",budget:2000,actual:0},
+    {id:"i94",name:"采光井[全屋]",budget:10000,actual:0},
+    {id:"i95",name:"防水[屋顶]",budget:12000,actual:30000},
+    {id:"i96",name:"出渣[全屋]",budget:3000,actual:0},
+    {id:"i97",name:"洗衣台[三楼露台]",budget:2000,actual:0},
+    {id:"i98",name:"栏杆[三楼露台]",budget:2000,actual:0},
+    {id:"i99",name:"水吧台[一楼客厅]",budget:2000,actual:0},
+    {id:"i100",name:"美缝[全屋地砖]",budget:5000,actual:0},
+  ]},
+  {id:"c11",name:"管道改造",icon:"🔧",items:[
+    {id:"i101",name:"200管[全屋]",budget:0,actual:16000},
+    {id:"i102",name:"110管[全屋]",budget:0,actual:0},
+    {id:"i103",name:"75管[全屋]",budget:0,actual:0},
+    {id:"i104",name:"50管[全屋]",budget:0,actual:0},
+    {id:"i105",name:"地面开槽[全屋]",budget:0,actual:0},
+    {id:"i106",name:"墙面开槽[全屋]",budget:0,actual:0},
+    {id:"i107",name:"220转孔[全屋]",budget:0,actual:0},
+    {id:"i108",name:"120转孔[全屋]",budget:0,actual:0},
+    {id:"i109",name:"75转孔[全屋]",budget:0,actual:0},
+  ]},
+  {id:"c12",name:"电梯",icon:"🛗",items:[
+    {id:"i110",name:"铝合金门套[电梯井]",budget:2400,actual:0},
+    {id:"i111",name:"电梯[全屋]",budget:80000,actual:0},
+  ]},
+  {id:"c13",name:"健身区",icon:"🏋️",items:[
+    {id:"i112",name:"镜子[二楼]",budget:1000,actual:0},
+    {id:"i113",name:"器材[二楼]",budget:1000,actual:0},
+  ]},
+  {id:"c14",name:"电竞室",icon:"🎮",items:[
+    {id:"i114",name:"装饰[负一楼]",budget:2000,actual:0},
+  ]},
+  {id:"c15",name:"花园",icon:"🌿",items:[
+    {id:"i115",name:"正花园[花园]",budget:50000,actual:82000},
+    {id:"i116",name:"负二楼景观[花园]",budget:12000,actual:0},
+    {id:"i117",name:"侧花园[花园]",budget:2000,actual:0},
+  ]},
+  {id:"c16",name:"阳台",icon:"🏠",items:[
+    {id:"i118",name:"三楼阳台[阳台]",budget:10000,actual:0},
+  ]},
+  {id:"c17",name:"车位",icon:"🚗",items:[
+    {id:"i119",name:"车位[车位]",budget:0,actual:0},
+  ]},
+];
+}
+
+// ==================== STATE ====================
+let categories = [];
+let expandedCats = new Set();
+
+// ==================== INIT ====================
+function init(){
+  const saved = localStorage.getItem('reno_budget');
+  if(saved){
+    try{ categories = JSON.parse(saved); }
+    catch(e){ categories = getDefaultCategories(); }
+  } else { categories = getDefaultCategories(); }
+  // Auto-expand overspent categories
+  expandedCats.clear();
+  categories.forEach(cat => {
+    const catBudget = getCatBudget(cat);
+    const catActual = getCatActual(cat);
+    if(catActual > catBudget && catBudget > 0) expandedCats.add(cat.id);
+  });
+  save();
+  render();
+}
+
+function save(){
+  localStorage.setItem('reno_budget', JSON.stringify(categories));
+}
+
+function resetData(){
+  if(confirm('确定要重置所有预算数据吗？此操作不可恢复。')){
+    categories = getDefaultCategories();
+    expandedCats.clear();
+    save(); render();
+  }
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(categories,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '装修预算_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+
+function importData(){
+  const input = document.createElement('input');
+  input.type='file'; input.accept='.json';
+  input.onchange = e => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try{
+        categories = JSON.parse(ev.target.result);
+        expandedCats.clear();
+        save(); render();
+      }catch(err){ alert('文件格式错误'); }
+    };
+    reader.readAsText(e.target.files[0]);
+  };
+  input.click();
+}
+
+// ==================== HELPERS ====================
+function genId(){ return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function fmt(n){ return n.toLocaleString('zh-CN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtF(n){ return n.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function getCatBudget(cat){ return cat.items.reduce((s,i)=>s+(i.budget||0),0); }
+function getCatActual(cat){ return cat.items.reduce((s,i)=>s+(i.actual||0),0); }
+function getTotalBudget(){ return categories.reduce((s,c)=>s+getCatBudget(c),0); }
+function getTotalActual(){ return categories.reduce((s,c)=>s+getCatActual(c),0); }
+
+function findCat(catId){ return categories.find(c=>c.id===catId); }
+function findItem(itemId){
+  for(const cat of categories){
+    const item = cat.items.find(i=>i.id===itemId);
+    if(item) return {item, cat};
+  }
+  return null;
+}
+
+// ==================== MODAL ====================
+function openModal(title, bodyHTML, footHTML){
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHTML;
+  document.getElementById('modalFoot').innerHTML = footHTML;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+
+function pickIcon(el){
+  el.parentElement.querySelectorAll('.icon-opt').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ==================== RENDER ====================
+function render(){
+  renderStats();
+  renderAlert();
+  renderContent();
+}
+
+function renderStats(){
+  const totalBudget = getTotalBudget();
+  const totalActual = getTotalActual();
+  const remaining = totalBudget - totalActual;
+  const pct = totalBudget ? Math.round(totalActual/totalBudget*100) : 0;
+  const overBudget = totalActual - totalBudget;
+  const over20 = totalActual > totalBudget * 1.2;
+
+  let barColor = 'var(--green)';
+  if(pct > 80) barColor = 'var(--yellow)';
+  if(pct > 100) barColor = 'var(--red)';
+
+  // Count categories over budget
+  const overCats = categories.filter(c => getCatActual(c) > getCatBudget(c) && getCatBudget(c) > 0).length;
+
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-card neutral">
+      <div class="stat-label">总预算</div>
+      <div class="stat-value">¥${fmt(totalBudget)}</div>
+      <div class="stat-sub">${categories.length} 个分类 · ${categories.reduce((s,c)=>s+c.items.length,0)} 项</div>
+    </div>
+    <div class="stat-card ${over20?'warning':pct>80?'warn':'ok'}">
+      <div class="stat-label">已花费</div>
+      <div class="stat-value ${over20?'red':pct>80?'yellow':''}">¥${fmt(totalActual)}</div>
+      <div class="stat-sub">占预算 ${pct}%</div>
+      <div class="stat-bar"><div class="stat-bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor}"></div></div>
+    </div>
+    <div class="stat-card ${remaining<0?'warning':'neutral'}">
+      <div class="stat-label">${remaining>=0?'剩余':'超支'}</div>
+      <div class="stat-value ${remaining<0?'red':'green'}">${remaining>=0?'':'-'}¥${fmt(Math.abs(remaining))}</div>
+      <div class="stat-sub">${remaining>=0?'仍可支配':'已超出预算'}</div>
+    </div>
+    <div class="stat-card ${overCats>0?'warn':'ok'}">
+      <div class="stat-label">超支分类</div>
+      <div class="stat-value ${overCats>0?'red':'green'}">${overCats}</div>
+      <div class="stat-sub">${overCats>0?'实际支出超出预算':'所有分类未超预算'}</div>
+    </div>
+  `;
+}
+
+function renderAlert(){
+  const totalBudget = getTotalBudget();
+  const totalActual = getTotalActual();
+  const el = document.getElementById('alertArea');
+
+  if(totalBudget === 0){ el.innerHTML=''; return; }
+
+  const pct = Math.round(totalActual/totalBudget*100);
+
+  if(totalActual > totalBudget * 1.2){
+    const over = totalActual - totalBudget;
+    const overPct = Math.round(over/totalBudget*100);
+    el.innerHTML = `<div class="alert alert-danger">
+      <span class="alert-icon">🚨</span>
+      <span><strong>严重超支预警！</strong>实际花费 ¥${fmt(totalActual)} 已超出总预算 ¥${fmt(totalBudget)} 的 <strong>${overPct}%</strong>（超出 ¥${fmt(over)}）。建议立即审查后续支出。</span>
+    </div>`;
+  } else if(totalActual > totalBudget){
+    const over = totalActual - totalBudget;
+    el.innerHTML = `<div class="alert alert-warning">
+      <span class="alert-icon">⚠️</span>
+      <span><strong>预算超支</strong> — 实际花费已超出总预算 ¥${fmt(over)}，请控制后续支出。距 20% 预警线还剩 ¥${fmt(Math.floor(totalBudget*0.2)-over)}。</span>
+    </div>`;
+  } else if(pct >= 90){
+    el.innerHTML = `<div class="alert alert-warning">
+      <span class="alert-icon">📊</span>
+      <span>预算使用率已达 <strong>${pct}%</strong>，剩余 ¥${fmt(totalBudget-totalActual)}，请注意控制支出。</span>
+    </div>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+function renderContent(){
+  const el = document.getElementById('content');
+  let html = '';
+
+  categories.forEach(cat => {
+    const catBudget = getCatBudget(cat);
+    const catActual = getCatActual(cat);
+    const diff = catBudget - catActual;
+    const isOver = catActual > catBudget && catBudget > 0;
+    const pct = catBudget ? Math.min(Math.round(catActual/catBudget*100),100) : 0;
+    const expanded = expandedCats.has(cat.id);
+
+    let progressColor = 'var(--green)';
+    if(pct > 80) progressColor = 'var(--yellow)';
+    if(isOver) progressColor = 'var(--red)';
+
+    const catClass = isOver ? 'cat-over' : (catActual > 0 ? 'cat-ok' : 'cat-empty');
+    const overPct = catBudget > 0 ? Math.round((catActual - catBudget) / catBudget * 100) : 0;
+
+    html += `<div class="category ${catClass}">
+      <div class="cat-header ${expanded?'expanded':''}" onclick="toggleCat('${cat.id}')">
+        <div class="cat-icon" style="${isOver?'background:var(--red-bg)':''}">${cat.icon}</div>
+        <div class="cat-info">
+          <div class="cat-name">${cat.name}${isOver?`<span class="cat-over-badge">⚠ 超支${overPct}%</span>`:''}</div>
+          <div class="cat-meta">${cat.items.length} 项子目</div>
+        </div>
+        <div class="cat-amounts">
+          <div class="cat-amount">
+            <div class="cat-amount-label">预算</div>
+            <div class="cat-amount-value">¥${fmt(catBudget)}</div>
+          </div>
+          <div class="cat-amount">
+            <div class="cat-amount-label">实际</div>
+            <div class="cat-amount-value ${isOver?'over':''}">¥${fmt(catActual)}</div>
+          </div>
+          <div class="cat-amount">
+            <div class="cat-amount-label">${isOver?'超支':'剩余'}</div>
+            <div class="cat-amount-value ${isOver?'over':''}" style="color:${isOver?'var(--red)':(catActual>0?'var(--green)':'var(--text2)')}">${isOver?'+':''}¥${isOver?fmt(-diff):fmt(diff)}</div>
+          </div>
+          <span class="cat-arrow">▶</span>
+        </div>
+        <div class="cat-actions">
+          <button onclick="event.stopPropagation();editCategory('${cat.id}')" title="编辑分类">✎</button>
+          <button class="del-btn" onclick="event.stopPropagation();deleteCategory('${cat.id}')" title="删除分类">✕</button>
+        </div>
+      </div>
+      <div class="cat-progress"><div class="cat-progress-fill" style="width:${pct}%;background:${progressColor}"></div></div>
+      <div class="cat-items ${expanded?'open':''}">
+        ${cat.items.length ? `<div class="col-header"><span>名称</span><span style="text-align:right">预算</span><span style="text-align:right">实际</span><span style="text-align:right">差额</span><span></span></div>` : ''}
+        ${cat.items.map(item => {
+          const itemDiff = (item.budget||0) - (item.actual||0);
+          const itemOver = item.actual > item.budget && item.budget > 0;
+          const itemUnder = item.actual > 0 && item.actual <= item.budget && item.budget > 0;
+          const diffClass = itemOver ? 'over' : itemDiff > 0 ? 'under' : 'zero';
+          return `<div class="item-row">
+            <span class="item-name">${item.name}${itemUnder?'<span style="color:var(--green);font-size:11px;margin-left:4px">✓</span>':''}</span>
+            <span class="item-budget" style="text-align:right;color:var(--text2)">¥${fmt(item.budget||0)}</span>
+            <span class="item-actual" style="text-align:right;font-weight:500;${itemOver?'color:var(--red)':itemUnder?'color:var(--green)':''}">¥${fmt(item.actual||0)}</span>
+            <span class="item-diff ${diffClass}" style="text-align:right">${itemOver?'+':''}¥${fmt(Math.abs(itemDiff))}</span>
+            <span class="item-actions">
+              <button onclick="event.stopPropagation();editItem('${item.id}')" title="编辑">✎</button>
+              <button class="del-btn" onclick="event.stopPropagation();deleteItem('${item.id}')" title="删除">✕</button>
+            </span>
+          </div>`;
+        }).join('')}
+        <div class="add-item-row">
+          <button class="add-item-btn" onclick="event.stopPropagation();addItem('${cat.id}')">+ 添加子项</button>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  html += `<div class="add-cat-card" onclick="addCategory()">+ 新增分类</div>`;
+
+  if(!categories.length){
+    html = `<div class="empty-hint">暂无预算分类<br><br><button class="btn btn-primary" onclick="addCategory()">+ 创建第一个分类</button></div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function toggleCat(catId){
+  if(expandedCats.has(catId)) expandedCats.delete(catId);
+  else expandedCats.add(catId);
+  renderContent();
+}
+
+// ==================== CATEGORY CRUD ====================
+function addCategory(){
+  const body = `
+    <div class="field">
+      <label>分类名称</label>
+      <input type="text" id="mCatName" placeholder="例如：智能家居" autofocus>
+    </div>
+    <div class="field">
+      <label>图标</label>
+      <div class="icon-picker" id="mCatIcons">
+        ${ICONS.map((ic,i)=>`<span class="icon-opt${i===0?' selected':''}" data-icon="${ic}" onclick="pickIcon(this)">${ic}</span>`).join('')}
+      </div>
+    </div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="confirmAddCat()">添加</button>`;
+  openModal('新增分类', body, foot);
+  setTimeout(()=>document.getElementById('mCatName')?.focus(),100);
+}
+
+function confirmAddCat(){
+  const name = document.getElementById('mCatName').value.trim();
+  if(!name){ alert('请输入分类名称'); return; }
+  const icon = document.querySelector('#mCatIcons .selected')?.dataset.icon || '📦';
+  categories.push({id:genId(), name, icon, items:[]});
+  save(); closeModal(); render();
+}
+
+function editCategory(catId){
+  const cat = findCat(catId);
+  if(!cat) return;
+  const body = `
+    <div class="field">
+      <label>分类名称</label>
+      <input type="text" id="mCatName" value="${cat.name}">
+    </div>
+    <div class="field">
+      <label>图标</label>
+      <div class="icon-picker" id="mCatIcons">
+        ${ICONS.map(ic=>`<span class="icon-opt${ic===cat.icon?' selected':''}" data-icon="${ic}" onclick="pickIcon(this)">${ic}</span>`).join('')}
+      </div>
+    </div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="confirmEditCat('${catId}')">保存</button>`;
+  openModal('编辑分类', body, foot);
+}
+
+function confirmEditCat(catId){
+  const cat = findCat(catId);
+  if(!cat) return;
+  const name = document.getElementById('mCatName').value.trim();
+  if(!name){ alert('请输入分类名称'); return; }
+  const icon = document.querySelector('#mCatIcons .selected')?.dataset.icon || cat.icon;
+  cat.name = name; cat.icon = icon;
+  save(); closeModal(); render();
+}
+
+function deleteCategory(catId){
+  const cat = findCat(catId);
+  if(!cat) return;
+  if(!confirm(`确定删除分类「${cat.icon} ${cat.name}」及其所有 ${cat.items.length} 个子项？`)) return;
+  categories = categories.filter(c=>c.id!==catId);
+  expandedCats.delete(catId);
+  save(); render();
+}
+
+// ==================== ITEM CRUD ====================
+function addItem(catId){
+  const cat = findCat(catId);
+  if(!cat) return;
+  const body = `
+    <div class="field">
+      <label>子项名称</label>
+      <input type="text" id="mItemName" placeholder="例如：冰箱" autofocus>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>预算金额 (¥)</label>
+        <input type="number" id="mItemBudget" value="0" min="0" step="100">
+        <div class="field-hint">设为 0 表示暂不设定预算</div>
+      </div>
+      <div class="field">
+        <label>实际花费 (¥)</label>
+        <input type="number" id="mItemActual" value="0" min="0" step="100">
+      </div>
+    </div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="confirmAddItem('${catId}')">添加</button>`;
+  openModal(`添加子项 → ${cat.icon} ${cat.name}`, body, foot);
+  setTimeout(()=>document.getElementById('mItemName')?.focus(),100);
+}
+
+function confirmAddItem(catId){
+  const cat = findCat(catId);
+  if(!cat) return;
+  const name = document.getElementById('mItemName').value.trim();
+  if(!name){ alert('请输入子项名称'); return; }
+  const budget = Math.max(0, parseFloat(document.getElementById('mItemBudget').value)||0);
+  const actual = Math.max(0, parseFloat(document.getElementById('mItemActual').value)||0);
+  cat.items.push({id:genId(), name, budget, actual});
+  expandedCats.add(catId);
+  save(); closeModal(); render();
+}
+
+function editItem(itemId){
+  const found = findItem(itemId);
+  if(!found) return;
+  const {item, cat} = found;
+  const body = `
+    <div class="field">
+      <label>子项名称</label>
+      <input type="text" id="mItemName" value="${item.name}">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>预算金额 (¥)</label>
+        <input type="number" id="mItemBudget" value="${item.budget||0}" min="0" step="100">
+      </div>
+      <div class="field">
+        <label>实际花费 (¥)</label>
+        <input type="number" id="mItemActual" value="${item.actual||0}" min="0" step="100">
+      </div>
+    </div>
+    <div class="field-hint" style="margin-top:-6px">
+      ${item.actual > item.budget && item.budget > 0
+        ? `<span style="color:var(--red)">⚠️ 已超支 ¥${fmt(item.actual - item.budget)}</span>`
+        : `<span style="color:var(--green)">剩余 ¥${fmt((item.budget||0)-(item.actual||0))}</span>`
+      }
+    </div>
+  `;
+  const foot = `
+    <button class="btn btn-outline" style="margin-right:auto;color:var(--red)" onclick="deleteItem('${itemId}')">删除</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="confirmEditItem('${itemId}')">保存</button>
+  `;
+  openModal(`编辑 → ${cat.icon} ${cat.name}`, body, foot);
+}
+
+function confirmEditItem(itemId){
+  const found = findItem(itemId);
+  if(!found) return;
+  const name = document.getElementById('mItemName').value.trim();
+  if(!name){ alert('请输入子项名称'); return; }
+  found.item.name = name;
+  found.item.budget = Math.max(0, parseFloat(document.getElementById('mItemBudget').value)||0);
+  found.item.actual = Math.max(0, parseFloat(document.getElementById('mItemActual').value)||0);
+  expandedCats.add(found.cat.id);
+  save(); closeModal(); render();
+}
+
+function deleteItem(itemId){
+  const found = findItem(itemId);
+  if(!found) return;
+  if(!confirm(`确定删除子项「${found.item.name}」？`)) return;
+  found.cat.items = found.cat.items.filter(i=>i.id!==itemId);
+  expandedCats.add(found.cat.id);
+  save(); closeModal(); render();
+}
+
+// ==================== KEYBOARD ====================
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') closeModal();
+});
+
+// ==================== START ====================
+init();
+</script>
+</body>
+</html>
